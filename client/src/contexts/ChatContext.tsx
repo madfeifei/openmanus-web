@@ -46,6 +46,8 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<number | null>(null);
+  const reconnectAttemptsRef = useRef<number>(0);
+  const maxReconnectAttempts = 5;
   
   // Get current session
   const currentSession = sessions.find(s => s.id === currentSessionId) || null;
@@ -56,38 +58,53 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       return;
     }
     
+    // Check if we've exceeded max reconnect attempts
+    if (reconnectAttemptsRef.current >= maxReconnectAttempts) {
+      console.warn('Max reconnection attempts reached. Backend may be unavailable.');
+      setIsConnected(false);
+      return;
+    }
+    
     try {
       const ws = api.createWebSocket(
         (message: WebSocketMessage) => {
           handleWebSocketMessage(message);
         },
         (error) => {
-          console.error('WebSocket error:', error);
+          // Suppress error logging if backend is not available
+          if (reconnectAttemptsRef.current === 0) {
+            console.info('Backend not available. Will retry connection...');
+          }
           setIsConnected(false);
         },
         (event) => {
-          console.log('WebSocket closed:', event);
           setIsConnected(false);
           
-          // Attempt to reconnect after 3 seconds
-          if (reconnectTimeoutRef.current) {
-            clearTimeout(reconnectTimeoutRef.current);
+          // Only attempt to reconnect if we haven't exceeded max attempts
+          if (reconnectAttemptsRef.current < maxReconnectAttempts) {
+            if (reconnectTimeoutRef.current) {
+              clearTimeout(reconnectTimeoutRef.current);
+            }
+            
+            const delay = Math.min(3000 * Math.pow(2, reconnectAttemptsRef.current), 30000);
+            reconnectTimeoutRef.current = window.setTimeout(() => {
+              reconnectAttemptsRef.current += 1;
+              console.info(`Reconnection attempt ${reconnectAttemptsRef.current}/${maxReconnectAttempts}...`);
+              connectWebSocket();
+            }, delay);
           }
-          reconnectTimeoutRef.current = window.setTimeout(() => {
-            console.log('Attempting to reconnect...');
-            connectWebSocket();
-          }, 3000);
         }
       );
       
       ws.onopen = () => {
-        console.log('WebSocket connected');
+        console.log('WebSocket connected successfully');
         setIsConnected(true);
+        reconnectAttemptsRef.current = 0; // Reset counter on successful connection
       };
       
       wsRef.current = ws;
     } catch (error) {
-      console.error('Failed to create WebSocket:', error);
+      console.info('Backend connection failed. This is expected if backend is not deployed yet.');
       setIsConnected(false);
     }
   }, []);

@@ -18,7 +18,8 @@ import {
   Trash2, 
   Loader2,
   Circle,
-  Sparkles
+  Sparkles,
+  AlertCircle
 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { cn } from "@/lib/utils";
@@ -145,6 +146,21 @@ export default function Home() {
       
       {/* Main Chat Area */}
       <main className="flex-1 flex flex-col">
+        {/* Backend Connection Banner */}
+        {!isConnected && (
+          <div className="bg-muted/50 border-b border-border/50 px-6 py-3">
+            <div className="max-w-4xl mx-auto flex items-center gap-3 text-sm">
+              <AlertCircle className="w-4 h-4 text-yellow-500 flex-shrink-0" />
+              <div className="flex-1">
+                <p className="text-foreground font-medium">Backend Not Connected</p>
+                <p className="text-muted-foreground text-xs mt-0.5">
+                  The OpenManus backend is not available. Please deploy the backend following the deployment guide, 
+                  then configure <code className="px-1 py-0.5 bg-muted rounded text-xs">VITE_BACKEND_URL</code> in your Vercel environment variables.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
         {currentSession ? (
           <>
             {/* Messages */}
