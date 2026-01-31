@@ -1,0 +1,137 @@
+/**
+ * API Service for OpenManus Backend
+ * Handles REST and WebSocket communication
+ */
+
+export interface TaskRequest {
+  prompt: string;
+  task_id?: string;
+}
+
+export interface TaskResponse {
+  task_id: string;
+  status: string;
+  message: string;
+}
+
+export interface TaskStatus {
+  task_id: string;
+  status: string;
+  created_at: string;
+  completed_at?: string;
+  result?: string;
+  error?: string;
+}
+
+export interface WebSocketMessage {
+  type: 'task_started' | 'status' | 'log' | 'task_completed' | 'task_failed' | 'error';
+  task_id?: string;
+  message?: string;
+  level?: string;
+  result?: string;
+  error?: string;
+  timestamp: string;
+}
+
+// Get backend URL from environment or use default
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
+
+export class OpenManusAPI {
+  private baseUrl: string;
+  
+  constructor(baseUrl: string = BACKEND_URL) {
+    this.baseUrl = baseUrl;
+  }
+  
+  /**
+   * Create a new task (non-blocking)
+   */
+  async createTask(request: TaskRequest): Promise<TaskResponse> {
+    const response = await fetch(`${this.baseUrl}/api/tasks`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(request),
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Failed to create task: ${response.statusText}`);
+    }
+    
+    return response.json();
+  }
+  
+  /**
+   * Get task status
+   */
+  async getTaskStatus(taskId: string): Promise<TaskStatus> {
+    const response = await fetch(`${this.baseUrl}/api/tasks/${taskId}`);
+    
+    if (!response.ok) {
+      throw new Error(`Failed to get task status: ${response.statusText}`);
+    }
+    
+    return response.json();
+  }
+  
+  /**
+   * List all tasks
+   */
+  async listTasks(): Promise<TaskStatus[]> {
+    const response = await fetch(`${this.baseUrl}/api/tasks`);
+    
+    if (!response.ok) {
+      throw new Error(`Failed to list tasks: ${response.statusText}`);
+    }
+    
+    return response.json();
+  }
+  
+  /**
+   * Create WebSocket connection for real-time task execution
+   */
+  createWebSocket(
+    onMessage: (message: WebSocketMessage) => void,
+    onError?: (error: Event) => void,
+    onClose?: (event: CloseEvent) => void
+  ): WebSocket {
+    const wsUrl = this.baseUrl.replace('http', 'ws');
+    const ws = new WebSocket(`${wsUrl}/ws/tasks`);
+    
+    ws.onmessage = (event) => {
+      try {
+        const message = JSON.parse(event.data) as WebSocketMessage;
+        onMessage(message);
+      } catch (error) {
+        console.error('Failed to parse WebSocket message:', error);
+      }
+    };
+    
+    ws.onerror = (error) => {
+      console.error('WebSocket error:', error);
+      onError?.(error);
+    };
+    
+    ws.onclose = (event) => {
+      console.log('WebSocket closed:', event);
+      onClose?.(event);
+    };
+    
+    return ws;
+  }
+  
+  /**
+   * Send task via WebSocket
+   */
+  sendTask(ws: WebSocket, request: TaskRequest): void {
+    if (ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify(request));
+    } else {
+      throw new Error('WebSocket is not open');
+    }
+  }
+}
+
+// Export singleton instance
+export const api = new OpenManusAPI();
