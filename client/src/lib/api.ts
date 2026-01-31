@@ -109,12 +109,16 @@ export class OpenManusAPI {
     };
     
     ws.onerror = (error) => {
-      console.error('WebSocket error:', error);
+      // Suppress error logging - this is expected when backend is not available
+      // The ChatContext will handle connection status display
       onError?.(error);
     };
     
     ws.onclose = (event) => {
-      console.log('WebSocket closed:', event);
+      // Only log if it's an abnormal closure
+      if (event.code !== 1000 && event.code !== 1001) {
+        console.info('WebSocket closed unexpectedly:', event.code, event.reason);
+      }
       onClose?.(event);
     };
     
