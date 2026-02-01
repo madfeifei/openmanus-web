@@ -23,6 +23,7 @@ import {
 import { useState, useRef, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { Streamdown } from 'streamdown';
+import { Message } from "@/components/Message";
 
 export default function Home() {
   const {
@@ -180,67 +181,19 @@ export default function Home() {
                   </div>
                 ) : (
                   currentSession.messages.map(message => (
-                    <div
+                    <Message
                       key={message.id}
-                      className={cn(
-                        "flex gap-4 animate-in fade-in slide-in-from-bottom-2 duration-300",
-                        message.role === 'user' && "flex-row-reverse"
-                      )}
-                    >
-                      {/* Avatar */}
-                      <div className={cn(
-                        "w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0",
-                        message.role === 'user' 
-                          ? "bg-gradient-to-br from-secondary to-secondary/50"
-                          : message.role === 'assistant'
-                          ? "bg-gradient-to-br from-primary to-accent"
-                          : "bg-muted"
-                      )}>
-                        {message.role === 'user' ? (
-                          <span className="text-sm font-semibold">You</span>
-                        ) : message.role === 'assistant' ? (
-                          <Sparkles className="w-5 h-5 text-primary-foreground" />
-                        ) : (
-                          <Circle className="w-3 h-3 text-muted-foreground" />
-                        )}
-                      </div>
-                      
-                      {/* Message Content */}
-                      <div className={cn(
-                        "flex-1 space-y-2",
-                        message.role === 'user' && "flex flex-col items-end"
-                      )}>
-                        <div className={cn(
-                          "inline-block px-4 py-3 rounded-lg",
-                          message.role === 'user' 
-                            ? "bg-secondary text-secondary-foreground"
-                            : message.role === 'assistant'
-                            ? "bg-card border border-border/50"
-                            : "bg-muted/50 text-muted-foreground text-sm"
-                        )}>
-                          {message.role === 'assistant' ? (
-                            <div className="prose prose-invert prose-sm max-w-none">
-                              <Streamdown>{message.content}</Streamdown>
-                            </div>
-                          ) : (
-                            <p className="whitespace-pre-wrap">{message.content}</p>
-                          )}
-                        </div>
-                        
-                        <div className={cn(
-                          "flex items-center gap-2 text-xs text-muted-foreground",
-                          message.role === 'user' && "justify-end"
-                        )}>
-                          <span>{message.timestamp.toLocaleTimeString()}</span>
-                          {message.status === 'sending' && (
-                            <Loader2 className="w-3 h-3 animate-spin" />
-                          )}
-                          {message.status === 'error' && (
-                            <span className="text-destructive">Failed</span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
+                      id={message.id}
+                      role={message.role as "user" | "assistant"}
+                      content={message.content}
+                      timestamp={message.timestamp.toISOString()}
+                      onEdit={(id, newContent) => {
+                        console.log('Edit message:', id, newContent);
+                      }}
+                      onDelete={(id) => {
+                        console.log('Delete message:', id);
+                      }}
+                    />
                   ))
                 )}
                 
