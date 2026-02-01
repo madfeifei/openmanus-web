@@ -7,7 +7,6 @@
  */
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { useChat } from "@/contexts/ChatContext";
@@ -271,23 +270,25 @@ export default function Home() {
             <div className="p-6">
               <div className="max-w-4xl mx-auto">
                 <div className="relative glow-border rounded-lg bg-card border border-border/50">
-                  <Input
+                  <input
+                    type="text"
                     value={inputValue}
                     onChange={(e) => setInputValue(e.target.value)}
                     onKeyPress={handleKeyPress}
                     placeholder={
                       isConnected 
                         ? "Type your message... (Press Enter to send)" 
-                        : "Connecting to server..."
+                        : "Waiting for backend connection..."
                     }
-                    disabled={!isConnected || isProcessing}
-                    className="pr-12 border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0"
+                    disabled={isProcessing}
+                    className="pr-12 border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 w-full outline-none text-foreground placeholder:text-muted-foreground"
                   />
                   <Button
                     size="icon"
                     onClick={handleSend}
-                    disabled={!inputValue.trim() || !isConnected || isProcessing}
+                    disabled={!inputValue.trim() || isProcessing || !isConnected}
                     className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8"
+                    title={!isConnected ? "Waiting for backend connection..." : "Send message"}
                   >
                     {isProcessing ? (
                       <Loader2 className="w-4 h-4 animate-spin" />
