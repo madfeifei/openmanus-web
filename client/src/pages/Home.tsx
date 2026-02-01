@@ -269,7 +269,7 @@ export default function Home() {
             {/* Input Area */}
             <div className="p-6">
               <div className="max-w-4xl mx-auto">
-                <div className="relative glow-border rounded-lg bg-card border border-border/50">
+                <div className="relative glow-border rounded-lg bg-card border border-border/50 pointer-events-auto">
                   <input
                     type="text"
                     value={inputValue}
@@ -281,7 +281,8 @@ export default function Home() {
                         : "Waiting for backend connection..."
                     }
                     disabled={isProcessing}
-                    className="pr-12 border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 w-full outline-none text-foreground placeholder:text-muted-foreground"
+                    className="pr-12 border-0 bg-transparent focus:ring-0 focus:ring-offset-0 w-full outline-none text-foreground placeholder:text-muted-foreground pointer-events-auto cursor-text"
+                    autoComplete="off"
                   />
                   <Button
                     size="icon"
