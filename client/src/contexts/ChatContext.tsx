@@ -71,10 +71,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
           handleWebSocketMessage(message);
         },
         (error) => {
-          // Suppress error logging if backend is not available
-          if (reconnectAttemptsRef.current === 0) {
-            console.info('Backend not available. Will retry connection...');
-          }
+          // Silently handle WebSocket errors - user will see connection status in UI
           setIsConnected(false);
         },
         (event) => {

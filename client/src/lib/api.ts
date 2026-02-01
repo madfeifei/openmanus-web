@@ -104,13 +104,12 @@ export class OpenManusAPI {
         const message = JSON.parse(event.data) as WebSocketMessage;
         onMessage(message);
       } catch (error) {
-        console.error('Failed to parse WebSocket message:', error);
+        // Silently handle parse errors
       }
     };
     
     ws.onerror = (error) => {
-      // Suppress error logging - this is expected when backend is not available
-      // The ChatContext will handle connection status display
+      // Silently handle WebSocket errors - connection status shown in UI
       onError?.(error);
     };
     
