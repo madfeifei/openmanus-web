@@ -97,7 +97,7 @@ export class OpenManusAPI {
     onClose?: (event: CloseEvent) => void
   ): WebSocket {
     const wsUrl = this.baseUrl.replace('http', 'ws');
-    const ws = new WebSocket(`${wsUrl}/ws/tasks`);
+    const ws = new WebSocket(`${wsUrl}/ws/chat`);
     
     ws.onmessage = (event) => {
       try {
