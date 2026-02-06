@@ -233,9 +233,10 @@ export default function Home() {
                         ? "Type your message... (Press Enter to send)" 
                         : "Waiting for backend connection..."
                     }
-                    disabled={isProcessing}
-                    className="pr-12 border-0 bg-transparent focus:ring-0 focus:ring-offset-0 w-full outline-none text-foreground placeholder:text-muted-foreground pointer-events-auto cursor-text"
+                    disabled={isProcessing || !isConnected}
+                    className="px-4 py-3 pr-12 border-0 bg-transparent focus:ring-0 focus:ring-offset-0 w-full outline-none text-foreground placeholder:text-muted-foreground pointer-events-auto cursor-text"
                     autoComplete="off"
+                    style={{ color: 'oklch(0.95 0.01 265)' }}
                   />
                   <Button
                     size="icon"
