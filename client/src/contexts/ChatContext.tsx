@@ -1,46 +1,45 @@
 /**
  * Chat Context
- * Manages chat sessions, messages, and WebSocket connection
+ * Manages chat sessions, messages, and WebSocket connection with database persistence
  */
 
 import { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
 import { api, WebSocketMessage } from '@/lib/api';
-import { nanoid } from 'nanoid';
+import { trpc } from '@/lib/trpc';
 
 export interface Message {
-  id: string;
+  id: number;
   role: 'user' | 'assistant' | 'system';
   content: string;
-  timestamp: Date;
-  status?: 'sending' | 'sent' | 'error';
+  createdAt: Date;
 }
 
 export interface ChatSession {
-  id: string;
+  id: number;
   title: string;
-  messages: Message[];
+  userId: number;
   createdAt: Date;
   updatedAt: Date;
 }
 
 interface ChatContextType {
   sessions: ChatSession[];
-  currentSessionId: string | null;
-  currentSession: ChatSession | null;
+  currentSessionId: number | null;
+  currentMessages: Message[];
   isConnected: boolean;
   isProcessing: boolean;
-  createSession: () => void;
-  selectSession: (sessionId: string) => void;
-  deleteSession: (sessionId: string) => void;
-  sendMessage: (content: string) => void;
-  clearCurrentSession: () => void;
+  isLoadingSessions: boolean;
+  isLoadingMessages: boolean;
+  createSession: () => Promise<void>;
+  selectSession: (sessionId: number) => void;
+  deleteSession: (sessionId: number) => Promise<void>;
+  sendMessage: (content: string) => Promise<void>;
 }
 
 const ChatContext = createContext<ChatContextType | undefined>(undefined);
 
 export function ChatProvider({ children }: { children: React.ReactNode }) {
-  const [sessions, setSessions] = useState<ChatSession[]>([]);
-  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
+  const [currentSessionId, setCurrentSessionId] = useState<number | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   
@@ -49,8 +48,35 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   const reconnectAttemptsRef = useRef<number>(0);
   const maxReconnectAttempts = 5;
   
-  // Get current session
-  const currentSession = sessions.find(s => s.id === currentSessionId) || null;
+  // tRPC queries
+  const utils = trpc.useUtils();
+  const { data: sessions = [], isLoading: isLoadingSessions } = trpc.chat.getSessions.useQuery();
+  const { data: currentMessages = [], isLoading: isLoadingMessages } = trpc.chat.getMessages.useQuery(
+    { sessionId: currentSessionId! },
+    { enabled: currentSessionId !== null }
+  );
+  
+  // tRPC mutations
+  const createSessionMutation = trpc.chat.createSession.useMutation({
+    onSuccess: () => {
+      utils.chat.getSessions.invalidate();
+    },
+  });
+  
+  const deleteSessionMutation = trpc.chat.deleteSession.useMutation({
+    onSuccess: () => {
+      utils.chat.getSessions.invalidate();
+    },
+  });
+  
+  const addMessageMutation = trpc.chat.addMessage.useMutation({
+    onSuccess: () => {
+      if (currentSessionId) {
+        utils.chat.getMessages.invalidate({ sessionId: currentSessionId });
+        utils.chat.getSessions.invalidate();
+      }
+    },
+  });
   
   // Initialize WebSocket connection
   const connectWebSocket = useCallback(() => {
@@ -108,219 +134,121 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   
   // Handle WebSocket messages
   const handleWebSocketMessage = useCallback((message: WebSocketMessage) => {
-    setSessions(prev => {
-      const current = prev.find(s => s.id === currentSessionId);
-      if (!current) return prev;
-      
-      const updatedSessions = [...prev];
-      const sessionIndex = updatedSessions.findIndex(s => s.id === currentSessionId);
-      
-      switch (message.type) {
-        case 'task_started':
-          setIsProcessing(true);
-          break;
-          
-        case 'status':
-        case 'log':
-          // Add system message for status updates
-          if (message.message) {
-            const statusMessage: Message = {
-              id: nanoid(),
-              role: 'system',
-              content: message.message,
-              timestamp: new Date(message.timestamp),
-              status: 'sent',
-            };
-            updatedSessions[sessionIndex].messages.push(statusMessage);
-            updatedSessions[sessionIndex].updatedAt = new Date();
-          }
-          break;
-          
-        case 'task_completed':
-          setIsProcessing(false);
-          if (message.result) {
-            const resultMessage: Message = {
-              id: nanoid(),
-              role: 'assistant',
-              content: message.result,
-              timestamp: new Date(message.timestamp),
-              status: 'sent',
-            };
-            updatedSessions[sessionIndex].messages.push(resultMessage);
-            updatedSessions[sessionIndex].updatedAt = new Date();
-          }
-          break;
-          
-        case 'task_failed':
-          setIsProcessing(false);
-          const errorMessage: Message = {
-            id: nanoid(),
-            role: 'system',
-            content: `Error: ${message.error || 'Task failed'}`,
-            timestamp: new Date(message.timestamp),
-            status: 'error',
-          };
-          updatedSessions[sessionIndex].messages.push(errorMessage);
-          updatedSessions[sessionIndex].updatedAt = new Date();
-          break;
-          
-        case 'error':
-          setIsProcessing(false);
-          const errMsg: Message = {
-            id: nanoid(),
-            role: 'system',
-            content: `Error: ${message.message || 'Unknown error'}`,
-            timestamp: new Date(message.timestamp),
-            status: 'error',
-          };
-          updatedSessions[sessionIndex].messages.push(errMsg);
-          updatedSessions[sessionIndex].updatedAt = new Date();
-          break;
-      }
-      
-      return updatedSessions;
-    });
-  }, [currentSessionId]);
-  
-  // Create new session
-  const createSession = useCallback(() => {
-    const newSession: ChatSession = {
-      id: nanoid(),
-      title: 'New Chat',
-      messages: [],
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
-    
-    setSessions(prev => [newSession, ...prev]);
-    setCurrentSessionId(newSession.id);
-  }, []);
-  
-  // Select session
-  const selectSession = useCallback((sessionId: string) => {
-    setCurrentSessionId(sessionId);
-  }, []);
-  
-  // Delete session
-  const deleteSession = useCallback((sessionId: string) => {
-    setSessions(prev => prev.filter(s => s.id !== sessionId));
-    if (currentSessionId === sessionId) {
-      setCurrentSessionId(null);
-    }
-  }, [currentSessionId]);
-  
-  // Send message
-  const sendMessage = useCallback((content: string) => {
-    if (!currentSessionId || !wsRef.current || !isConnected) {
-      console.error('Cannot send message: not connected or no session');
-      return;
-    }
-    
-    const userMessage: Message = {
-      id: nanoid(),
-      role: 'user',
-      content,
-      timestamp: new Date(),
-      status: 'sending',
-    };
-    
-    setSessions(prev => {
-      const updatedSessions = [...prev];
-      const sessionIndex = updatedSessions.findIndex(s => s.id === currentSessionId);
-      
-      if (sessionIndex !== -1) {
-        updatedSessions[sessionIndex].messages.push(userMessage);
-        updatedSessions[sessionIndex].updatedAt = new Date();
-        
-        // Update title if it's the first message
-        if (updatedSessions[sessionIndex].messages.length === 1) {
-          updatedSessions[sessionIndex].title = content.slice(0, 50) + (content.length > 50 ? '...' : '');
-        }
-      }
-      
-      return updatedSessions;
-    });
-    
-    // Send via WebSocket
-    try {
-      api.sendTask(wsRef.current, {
-        prompt: content,
-        task_id: nanoid(),
-      });
-      
-      // Update message status
-      setSessions(prev => {
-        const updatedSessions = [...prev];
-        const sessionIndex = updatedSessions.findIndex(s => s.id === currentSessionId);
-        if (sessionIndex !== -1) {
-          const msgIndex = updatedSessions[sessionIndex].messages.findIndex(m => m.id === userMessage.id);
-          if (msgIndex !== -1) {
-            updatedSessions[sessionIndex].messages[msgIndex].status = 'sent';
-          }
-        }
-        return updatedSessions;
-      });
-    } catch (error) {
-      console.error('Failed to send message:', error);
-      
-      // Update message status to error
-      setSessions(prev => {
-        const updatedSessions = [...prev];
-        const sessionIndex = updatedSessions.findIndex(s => s.id === currentSessionId);
-        if (sessionIndex !== -1) {
-          const msgIndex = updatedSessions[sessionIndex].messages.findIndex(m => m.id === userMessage.id);
-          if (msgIndex !== -1) {
-            updatedSessions[sessionIndex].messages[msgIndex].status = 'error';
-          }
-        }
-        return updatedSessions;
-      });
-    }
-  }, [currentSessionId, isConnected]);
-  
-  // Clear current session
-  const clearCurrentSession = useCallback(() => {
     if (!currentSessionId) return;
     
-    setSessions(prev => {
-      const updatedSessions = [...prev];
-      const sessionIndex = updatedSessions.findIndex(s => s.id === currentSessionId);
-      if (sessionIndex !== -1) {
-        updatedSessions[sessionIndex].messages = [];
-        updatedSessions[sessionIndex].updatedAt = new Date();
-      }
-      return updatedSessions;
-    });
-  }, [currentSessionId]);
-  
-  // Initialize: create first session and connect WebSocket
-  useEffect(() => {
-    if (sessions.length === 0) {
-      createSession();
+    switch (message.type) {
+      case 'task_started':
+        setIsProcessing(true);
+        break;
+        
+      case 'status':
+      case 'log':
+        // Add system/assistant message chunk
+        if (message.message && currentSessionId) {
+          addMessageMutation.mutate({
+            sessionId: currentSessionId,
+            role: 'system',
+            content: message.message,
+          });
+        }
+        break;
+        
+      case 'task_completed':
+        setIsProcessing(false);
+        if (message.result && currentSessionId) {
+          addMessageMutation.mutate({
+            sessionId: currentSessionId,
+            role: 'assistant',
+            content: message.result,
+          });
+        }
+        break;
+        
+      case 'task_failed':
+      case 'error':
+        setIsProcessing(false);
+        if (currentSessionId) {
+          addMessageMutation.mutate({
+            sessionId: currentSessionId,
+            role: 'system',
+            content: `Error: ${message.error || message.message || 'Unknown error'}`,
+          });
+        }
+        break;
     }
+  }, [currentSessionId, addMessageMutation]);
+  
+  // Connect WebSocket on mount
+  useEffect(() => {
     connectWebSocket();
     
     return () => {
-      if (wsRef.current) {
-        wsRef.current.close();
-      }
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current);
       }
+      if (wsRef.current) {
+        wsRef.current.close();
+      }
     };
+  }, [connectWebSocket]);
+  
+  // Create a new session
+  const createSession = useCallback(async () => {
+    const result = await createSessionMutation.mutateAsync({
+      title: 'New Chat',
+    });
+    setCurrentSessionId(result.sessionId);
+  }, [createSessionMutation]);
+  
+  // Select a session
+  const selectSession = useCallback((sessionId: number) => {
+    setCurrentSessionId(sessionId);
   }, []);
+  
+  // Delete a session
+  const deleteSession = useCallback(async (sessionId: number) => {
+    await deleteSessionMutation.mutateAsync({ sessionId });
+    if (currentSessionId === sessionId) {
+      setCurrentSessionId(null);
+    }
+  }, [deleteSessionMutation, currentSessionId]);
+  
+  // Send a message
+  const sendMessage = useCallback(async (content: string) => {
+    if (!currentSessionId || !isConnected) return;
+    
+    // Save user message to database
+    await addMessageMutation.mutateAsync({
+      sessionId: currentSessionId,
+      role: 'user',
+      content,
+    });
+    
+    // Send to backend via WebSocket
+    if (wsRef.current) {
+      try {
+        api.sendTask(wsRef.current, {
+          prompt: content,
+          task_id: `task-${Date.now()}`,
+        });
+      } catch (error) {
+        console.error('Failed to send message:', error);
+      }
+    }
+  }, [currentSessionId, isConnected, addMessageMutation]);
   
   const value: ChatContextType = {
     sessions,
     currentSessionId,
-    currentSession,
+    currentMessages,
     isConnected,
     isProcessing,
+    isLoadingSessions,
+    isLoadingMessages,
     createSession,
     selectSession,
     deleteSession,
     sendMessage,
-    clearCurrentSession,
   };
   
   return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>;
@@ -328,8 +256,8 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
 
 export function useChat() {
   const context = useContext(ChatContext);
-  if (!context) {
-    throw new Error('useChat must be used within ChatProvider');
+  if (context === undefined) {
+    throw new Error('useChat must be used within a ChatProvider');
   }
   return context;
 }

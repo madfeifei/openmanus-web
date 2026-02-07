@@ -6,6 +6,7 @@
  * - Real-time status indicators
  */
 
+import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
@@ -22,14 +23,19 @@ import {
 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { cn } from "@/lib/utils";
+import { getLoginUrl } from "@/const";
 import { Streamdown } from 'streamdown';
 import { Message } from "@/components/Message";
 
 export default function Home() {
+  // The userAuth hooks provides authentication state
+  // To implement login/logout functionality, simply call logout() or redirect to getLoginUrl()
+  let { user, loading, error, isAuthenticated, logout } = useAuth();
+
   const {
     sessions,
     currentSessionId,
-    currentSession,
+    currentMessages,
     isConnected,
     isProcessing,
     createSession,
@@ -37,6 +43,9 @@ export default function Home() {
     deleteSession,
     sendMessage,
   } = useChat();
+  
+  // Get current session
+  const currentSession = sessions.find(s => s.id === currentSessionId) || null;
   
   const [inputValue, setInputValue] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -46,7 +55,7 @@ export default function Home() {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [currentSession?.messages]);
+  }, [currentMessages]);
   
   const handleSend = () => {
     if (!inputValue.trim() || !isConnected || isProcessing) return;
@@ -108,7 +117,7 @@ export default function Home() {
                       {session.title}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      {session.messages.length} messages
+                      {new Date(session.updatedAt).toLocaleDateString()}
                     </p>
                   </div>
                   <Button
@@ -166,7 +175,7 @@ export default function Home() {
             {/* Messages */}
             <ScrollArea className="flex-1 p-6" ref={scrollRef}>
               <div className="max-w-4xl mx-auto space-y-6">
-                {currentSession.messages.length === 0 ? (
+                {currentMessages.length === 0 ? (
                   <div className="flex flex-col items-center justify-center h-full min-h-[400px] text-center">
                     <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center mb-6">
                       <Sparkles className="w-10 h-10 text-primary" />
@@ -180,7 +189,7 @@ export default function Home() {
                     </p>
                   </div>
                 ) : (
-                  currentSession.messages.map(message => (
+                  currentMessages.map((message: any) => (
                     <Message
                       key={message.id}
                       id={message.id}
