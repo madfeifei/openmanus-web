@@ -26,4 +26,4 @@
 
 ## Current Issues
 
-- [x] Fix "Invalid URL" error in production deployment (WebSocket URL configuration)
+- [x] Fix "Invalid URL" error in production deployment (fixed getLoginUrl validation)
