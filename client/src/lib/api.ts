@@ -4,6 +4,7 @@
  */
 
 export interface TaskRequest {
+  type: 'task';
   prompt: string;
   task_id?: string;
 }
@@ -127,9 +128,13 @@ export class OpenManusAPI {
   /**
    * Send task via WebSocket
    */
-  sendTask(ws: WebSocket, request: TaskRequest): void {
+  sendTask(ws: WebSocket, request: Omit<TaskRequest, 'type'>): void {
     if (ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify(request));
+      const message: TaskRequest = {
+        type: 'task',
+        ...request
+      };
+      ws.send(JSON.stringify(message));
     } else {
       throw new Error('WebSocket is not open');
     }
