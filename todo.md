@@ -27,3 +27,9 @@
 ## Current Issues
 
 - [x] Fix "Invalid URL" error in production deployment (fixed getLoginUrl validation)
+
+- [ ] Fix "New Chat" button not clickable on production deployment
+- [x] Create standalone Node.js backend for Railway deployment
+- [x] Configure Vercel for pure static frontend
+- [x] Set up environment variables for separated architecture
+- [x] Create deployment guide (DEPLOYMENT.md)
