@@ -44,7 +44,7 @@ This guide explains how to deploy OpenManus with a separated architecture:
 In Railway project settings, add:
 
 ```
-DATABASE_URL=<your-mysql-connection-string>
+DATABASE_URL=<your-postgresql-connection-string>
 PORT=3001
 NODE_ENV=production
 JWT_SECRET=<generate-random-secret>
@@ -188,7 +188,7 @@ Should return:
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `DATABASE_URL` | Yes | MySQL connection string |
+| `DATABASE_URL` | Yes | PostgreSQL connection string |
 | `PORT` | No | Server port (default: 3001) |
 | `NODE_ENV` | Yes | Set to `production` |
 | `JWT_SECRET` | Yes | Random secret for JWT signing |
@@ -208,7 +208,7 @@ Should return:
 
 - **Vercel**: Free tier (100GB bandwidth/month)
 - **Railway**: ~$5-10/month per service (depends on usage)
-- **Database**: Depends on provider (Railway MySQL, PlanetScale, etc.)
+- **Database**: Railway PostgreSQL (included in Railway plan)
 - **OpenAI**: Pay per token usage
 
 **Total estimated cost**: $10-30/month
