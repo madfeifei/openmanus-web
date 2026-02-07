@@ -95,10 +95,15 @@ export class OpenManusAPI {
   createWebSocket(
     onMessage: (message: WebSocketMessage) => void,
     onError?: (error: Event) => void,
-    onClose?: (event: CloseEvent) => void
+    onClose?: (event: CloseEvent) => void,
+    onOpen?: () => void
   ): WebSocket {
     const wsUrl = this.baseUrl.replace('http', 'ws');
     const ws = new WebSocket(`${wsUrl}/ws/chat`);
+    
+    ws.onopen = () => {
+      onOpen?.();
+    };
     
     ws.onmessage = (event) => {
       try {
@@ -129,12 +134,21 @@ export class OpenManusAPI {
    * Send task via WebSocket
    */
   sendTask(ws: WebSocket, request: Omit<TaskRequest, 'type'>): void {
+    const message: TaskRequest = {
+      type: 'task',
+      ...request
+    };
+    const messageStr = JSON.stringify(message);
+    
     if (ws.readyState === WebSocket.OPEN) {
-      const message: TaskRequest = {
-        type: 'task',
-        ...request
+      ws.send(messageStr);
+    } else if (ws.readyState === WebSocket.CONNECTING) {
+      // Wait for connection to open, then send
+      const onOpen = () => {
+        ws.send(messageStr);
+        ws.removeEventListener('open', onOpen);
       };
-      ws.send(JSON.stringify(message));
+      ws.addEventListener('open', onOpen);
     } else {
       throw new Error('WebSocket is not open');
     }

@@ -90,14 +90,14 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
               connectWebSocket();
             }, delay);
           }
+        },
+        () => {
+          // onOpen callback
+          console.log('WebSocket connected successfully');
+          setIsConnected(true);
+          reconnectAttemptsRef.current = 0; // Reset counter on successful connection
         }
       );
-      
-      ws.onopen = () => {
-        console.log('WebSocket connected successfully');
-        setIsConnected(true);
-        reconnectAttemptsRef.current = 0; // Reset counter on successful connection
-      };
       
       wsRef.current = ws;
     } catch (error) {
