@@ -23,3 +23,7 @@
 - [ ] Optimize streaming response display (accumulate chunks into single message)
 - [ ] Add message status indicators (sending/sent/failed)
 - [ ] Implement auto-update session title based on first message
+
+## Current Issues
+
+- [x] Fix "Invalid URL" error in production deployment (WebSocket URL configuration)

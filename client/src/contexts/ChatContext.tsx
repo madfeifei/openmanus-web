@@ -125,7 +125,12 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         }
       );
       
-      wsRef.current = ws;
+      // Only set wsRef if ws is not null
+      if (ws) {
+        wsRef.current = ws;
+      } else {
+        setIsConnected(false);
+      }
     } catch (error) {
       console.info('Backend connection failed. This is expected if backend is not deployed yet.');
       setIsConnected(false);

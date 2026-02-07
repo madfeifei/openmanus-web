@@ -97,7 +97,13 @@ export class OpenManusAPI {
     onError?: (error: Event) => void,
     onClose?: (event: CloseEvent) => void,
     onOpen?: () => void
-  ): WebSocket {
+  ): WebSocket | null {
+    // Validate base URL - return null if not configured
+    if (!this.baseUrl || this.baseUrl === 'undefined' || this.baseUrl === '' || this.baseUrl === 'http://localhost:8000') {
+      console.warn('Backend URL is not configured. WebSocket connection will not be established.');
+      return null;
+    }
+    
     const wsUrl = this.baseUrl.replace('http', 'ws');
     const ws = new WebSocket(`${wsUrl}/ws/chat`);
     
